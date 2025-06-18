@@ -129,8 +129,19 @@ z_result_t _z_socket_wait_event(void *v_peers, _z_mutex_rec_t *mutex) {
     _z_mutex_rec_lock(mutex);
     _z_transport_peer_unicast_list_t *curr = *peers;
     int max_fd = 0;
+#if Z_FEATURE_LINK_SERIAL == 1
+    bool has_serial = false;
+#endif
     while (curr != NULL) {
         _z_transport_peer_unicast_t *peer = _z_transport_peer_unicast_list_head(curr);
+#if Z_FEATURE_LINK_SERIAL == 1
+        if (peer->_socket._serial != NULL) {
+            peer->_pending = true;
+            has_serial = true;
+            curr = _z_transport_peer_unicast_list_tail(curr);
+            continue;
+        }
+#endif
         FD_SET(peer->_socket._fd, &read_fds);
         if (peer->_socket._fd > max_fd) {
             max_fd = peer->_socket._fd;
@@ -139,19 +150,38 @@ z_result_t _z_socket_wait_event(void *v_peers, _z_mutex_rec_t *mutex) {
     }
     _z_mutex_rec_unlock(mutex);
     // Wait for events
+    int result = 0;
+#if Z_FEATURE_LINK_TCP == 1 || Z_FEATURE_LINK_UDP_MULTICAST == 1 || \
+    Z_FEATURE_LINK_UDP_UNICAST == 1
     struct timeval timeout;
     timeout.tv_sec = Z_CONFIG_SOCKET_TIMEOUT / 1000;
     timeout.tv_usec = (Z_CONFIG_SOCKET_TIMEOUT % 1000) * 1000;
-    int result = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
-    if (result <= 0) {
+    result = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
+    if (result <= 0 && !has_serial) {
         return _Z_ERR_GENERIC;
     }
+#else
+    (void)max_fd;
+    (void)read_fds;
+#endif
     // Mark sockets that are pending
     _z_mutex_rec_lock(mutex);
     curr = *peers;
     while (curr != NULL) {
         _z_transport_peer_unicast_t *peer = _z_transport_peer_unicast_list_head(curr);
+        bool ready = false;
+#if Z_FEATURE_LINK_SERIAL == 1
+        if (peer->_socket._serial != NULL) {
+            ready = peer->_pending;
+        } else
+#endif
+#if Z_FEATURE_LINK_TCP == 1 || Z_FEATURE_LINK_UDP_MULTICAST == 1 || \
+    Z_FEATURE_LINK_UDP_UNICAST == 1
         if (FD_ISSET(peer->_socket._fd, &read_fds)) {
+            ready = true;
+        }
+#endif
+        if (ready) {
             peer->_pending = true;
         }
         curr = _z_transport_peer_unicast_list_tail(curr);
