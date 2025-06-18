@@ -129,9 +129,7 @@ z_result_t _z_socket_wait_event(void *v_peers, _z_mutex_rec_t *mutex) {
     _z_mutex_rec_lock(mutex);
     _z_transport_peer_unicast_list_t *curr = *peers;
     int max_fd = 0;
-#if Z_FEATURE_LINK_SERIAL == 1
     bool has_serial = false;
-#endif
     while (curr != NULL) {
         _z_transport_peer_unicast_t *peer = _z_transport_peer_unicast_list_head(curr);
 #if Z_FEATURE_LINK_SERIAL == 1
@@ -142,10 +140,13 @@ z_result_t _z_socket_wait_event(void *v_peers, _z_mutex_rec_t *mutex) {
             continue;
         }
 #endif
+#if Z_FEATURE_LINK_TCP == 1 || Z_FEATURE_LINK_UDP_MULTICAST == 1 || \
+    Z_FEATURE_LINK_UDP_UNICAST == 1
         FD_SET(peer->_socket._fd, &read_fds);
         if (peer->_socket._fd > max_fd) {
             max_fd = peer->_socket._fd;
         }
+#endif
         curr = _z_transport_peer_unicast_list_tail(curr);
     }
     _z_mutex_rec_unlock(mutex);
