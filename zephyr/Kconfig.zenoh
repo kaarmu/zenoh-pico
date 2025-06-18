@@ -5,65 +5,146 @@ config ZENOH_PICO
 
 if ZENOH_PICO
 
-config ZENOH_PICO_LINK_SERIAL
-	bool "Serial Link"
-	help
-	  Use serial link
+menu "Zenoh PICO: Core Feature Flags"
 
-config ZENOH_PICO_MULTI_THREAD
-	bool "Multithreading support"
-	help
-	  Multithreading support
+	config ZENOH_PICO_UNSTABLE_API
+		bool "Unstable Zenoh-C API"
+		default n
+		help
+			Enable unstable API features. This is not recommended for production use.
 
-config ZENOH_PICO_PUBLICATION
-	bool "Publication Support"
-	help
-	  Publication support
+	config ZENOH_PICO_PUBLICATION
+		bool "Publication Support"
+		default y
 
-config ZENOH_PICO_SUBSCRIPTION
-	bool "Subscription Support"
-	help
-	  Subscription Support
+	config ZENOH_PICO_SUBSCRIPTION
+		bool "Subscription Support"
+		default y
 
-config ZENOH_PICO_QUERY
-	bool "Query Support"
-	help
-	  Query Support
+	config ZENOH_PICO_QUERY
+		bool "Query Support"
+		default y
 
-config ZENOH_PICO_QUERYABLE
-	bool "Queryable Support"
-	help
-	  Queryable Support
+	config ZENOH_PICO_QUERYABLE
+		bool "Queryable Support"
+		default y
 
-config ZENOH_PICO_RAWETH_TRANSPORT
-	bool "Raw Ethernet Support"
-	help
-	  Raw Ethernet Support
+	config ZENOH_PICO_LIVELINESS
+		bool "Liveliness Support"
+		default y
 
-config ZENOH_PICO_LINK_TCP
-	bool "TCP Link"
-	help
-	  TCP Link
+	config ZENOH_PICO_INTEREST
+		bool "Interest Support"
+		default y
 
-config ZENOH_PICO_LINK_UDP_UNICAST
-	bool "UDP Unicast"
-	help
-	  UDP Unicast
+	config ZENOH_PICO_FRAGMENTATION
+		bool "Fragmentation Support"
+		default y
 
-config ZENOH_PICO_LINK_UDP_MULTICAST
-	bool "UDP Multicast"
-	help
-	  UDP Multicast
+	config ZENOH_PICO_ENCODING_VALUES
+		bool "Encoding Values Support"
+		default y
 
-config ZENOH_PICO_SCOUTING_UDP
-	bool "Scouting UDP"
-	help
-	  Scouting UDP
+	config ZENOH_PICO_MULTI_THREAD
+		bool "Multithreading support"
+		default y
 
-config ZENOH_PICO_LINK_WS
-	bool "WS Link"
-	help
-	  WS Link
+endmenu
+
+menu "Zenoh PICO: Network Transport Features"
+
+	config ZENOH_PICO_LINK_TCP
+		bool "TCP Link"
+		default y
+
+	config ZENOH_PICO_LINK_BLUETOOTH
+		bool "Bluetooth Link"
+		default n
+
+	config ZENOH_PICO_LINK_WS
+		bool "WebSocket Link"
+		default n
+
+	config ZENOH_PICO_LINK_SERIAL
+		bool "Serial Link"
+		default n
+
+	config ZENOH_PICO_LINK_SERIAL_USB
+		bool "Serial USB Link"
+		default n
+
+	config ZENOH_PICO_SCOUTING_UDP
+		bool "Scouting UDP"
+		default y
+
+	config ZENOH_PICO_LINK_UDP_UNICAST
+		bool "UDP Unicast"
+		default y
+
+	config ZENOH_PICO_LINK_UDP_MULTICAST
+		bool "UDP Multicast"
+		default y
+
+	config ZENOH_PICO_UNICAST_TRANSPORT
+		bool "Unicast Transport Support"
+		default y
+
+	config ZENOH_PICO_MUTLICAST_TRANSPORT
+		bool "Multicast Transort Support"
+		default y
+
+	config ZENOH_PICO_RAWETH_TRANSPORT
+		bool "Raw Ethernet Transport"
+		default n
+
+endmenu
+
+menu "Zenoh PICO: Advanced Features"
+
+	config ZENOH_PICO_TCP_NODELAY
+		bool "TCP_NODELAY"
+		default y
+
+	config ZENOH_PICO_LOCAL_SUBSCRIBER
+		bool "Local Subscriber"
+		default n
+
+	config ZENOH_PICO_SESSION_CHECK
+		bool "Session Check"
+		default y
+
+	config ZENOH_PICO_BATCHING
+		bool "Batching"
+		default y
+
+	config ZENOH_PICO_BATCH_TX_MUTEX
+		bool "Batch Tx Mutex"
+		default n
+	
+	config ZENOH_PICO_BATCH_PEER_MUTEX
+		bool "Batch Peer Mutex lock at a batch level"
+		default n
+
+	config ZENOH_PICO_MATCHING
+		bool "Matching"
+		default y
+
+	config ZENOH_PICO_RX_CACHE
+		bool "RX Cache"
+		default n
+
+	config ZENOH_PICO_UNICAST_PEER_MODE
+		bool "Unicat Peer Mode"
+		default y
+
+	config ZENOH_PICO_AUTO_RECONNECT
+		bool "Autoreconnect"
+		default y
+
+	config ZENOH_PICO_MULTICAST_DECLARATIONS
+		bool "Multicast resource declarations"
+		default n
+
+endmenu
 
 endif
-
