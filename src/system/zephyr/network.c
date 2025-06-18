@@ -40,6 +40,14 @@
 #include "zenoh-pico/utils/pointers.h"
 
 z_result_t _z_socket_set_non_blocking(const _z_sys_net_socket_t *sock) {
+#if Z_FEATURE_LINK_SERIAL == 1
+    /* Serial sockets have no file descriptor and are implicitly non-blocking. */
+    if (sock->_serial != NULL) {
+        return _Z_RES_OK;
+    }
+#endif
+#if Z_FEATURE_LINK_TCP == 1 || Z_FEATURE_LINK_UDP_MULTICAST == 1 || \
+    Z_FEATURE_LINK_UDP_UNICAST == 1
     int flags = fcntl(sock->_fd, F_GETFL, 0);
     if (flags == -1) {
         return _Z_ERR_GENERIC;
@@ -48,9 +56,24 @@ z_result_t _z_socket_set_non_blocking(const _z_sys_net_socket_t *sock) {
         return _Z_ERR_GENERIC;
     }
     return _Z_RES_OK;
+#else
+    _ZP_UNUSED(sock);
+    return _Z_ERR_GENERIC;
+#endif
 }
 
 z_result_t _z_socket_accept(const _z_sys_net_socket_t *sock_in, _z_sys_net_socket_t *sock_out) {
+#if Z_FEATURE_LINK_SERIAL == 1
+    if (sock_in->_serial != NULL) {
+        /* Serial links do not support accept semantics. Instead reuse the same
+         * serial handle. Connection handshake is already performed during
+         * _z_open_serial_*(). */
+        sock_out->_serial = sock_in->_serial;
+        return _Z_RES_OK;
+    }
+#endif
+#if Z_FEATURE_LINK_TCP == 1 || Z_FEATURE_LINK_UDP_MULTICAST == 1 || \
+    Z_FEATURE_LINK_UDP_UNICAST == 1
     struct sockaddr naddr;
     unsigned int nlen = sizeof(naddr);
     int con_socket = accept(sock_in->_fd, &naddr, &nlen);
@@ -75,9 +98,27 @@ z_result_t _z_socket_accept(const _z_sys_net_socket_t *sock_in, _z_sys_net_socke
     // Note socket
     sock_out->_fd = con_socket;
     return _Z_RES_OK;
+#else
+    _ZP_UNUSED(sock_in);
+    _ZP_UNUSED(sock_out);
+    return _Z_ERR_GENERIC;
+#endif
 }
 
-void _z_socket_close(_z_sys_net_socket_t *sock) { close(sock->_fd); }
+void _z_socket_close(_z_sys_net_socket_t *sock) {
+#if Z_FEATURE_LINK_SERIAL == 1
+    if (sock->_serial != NULL) {
+        _z_close_serial(sock);
+        return;
+    }
+#endif
+#if Z_FEATURE_LINK_TCP == 1 || Z_FEATURE_LINK_UDP_MULTICAST == 1 || \
+    Z_FEATURE_LINK_UDP_UNICAST == 1
+    close(sock->_fd);
+#else
+    _ZP_UNUSED(sock);
+#endif
+}
 
 #if Z_FEATURE_MULTI_THREAD == 1
 z_result_t _z_socket_wait_event(void *v_peers, _z_mutex_rec_t *mutex) {
@@ -88,8 +129,19 @@ z_result_t _z_socket_wait_event(void *v_peers, _z_mutex_rec_t *mutex) {
     _z_mutex_rec_lock(mutex);
     _z_transport_peer_unicast_list_t *curr = *peers;
     int max_fd = 0;
+#if Z_FEATURE_LINK_SERIAL == 1
+    bool has_serial = false;
+#endif
     while (curr != NULL) {
         _z_transport_peer_unicast_t *peer = _z_transport_peer_unicast_list_head(curr);
+#if Z_FEATURE_LINK_SERIAL == 1
+        if (peer->_socket._serial != NULL) {
+            peer->_pending = true;
+            has_serial = true;
+            curr = _z_transport_peer_unicast_list_tail(curr);
+            continue;
+        }
+#endif
         FD_SET(peer->_socket._fd, &read_fds);
         if (peer->_socket._fd > max_fd) {
             max_fd = peer->_socket._fd;
@@ -98,19 +150,38 @@ z_result_t _z_socket_wait_event(void *v_peers, _z_mutex_rec_t *mutex) {
     }
     _z_mutex_rec_unlock(mutex);
     // Wait for events
+    int result = 0;
+#if Z_FEATURE_LINK_TCP == 1 || Z_FEATURE_LINK_UDP_MULTICAST == 1 || \
+    Z_FEATURE_LINK_UDP_UNICAST == 1
     struct timeval timeout;
     timeout.tv_sec = Z_CONFIG_SOCKET_TIMEOUT / 1000;
     timeout.tv_usec = (Z_CONFIG_SOCKET_TIMEOUT % 1000) * 1000;
-    int result = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
-    if (result <= 0) {
+    result = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
+    if (result <= 0 && !has_serial) {
         return _Z_ERR_GENERIC;
     }
+#else
+    (void)max_fd;
+    (void)read_fds;
+#endif
     // Mark sockets that are pending
     _z_mutex_rec_lock(mutex);
     curr = *peers;
     while (curr != NULL) {
         _z_transport_peer_unicast_t *peer = _z_transport_peer_unicast_list_head(curr);
+        bool ready = false;
+#if Z_FEATURE_LINK_SERIAL == 1
+        if (peer->_socket._serial != NULL) {
+            ready = peer->_pending;
+        } else
+#endif
+#if Z_FEATURE_LINK_TCP == 1 || Z_FEATURE_LINK_UDP_MULTICAST == 1 || \
+    Z_FEATURE_LINK_UDP_UNICAST == 1
         if (FD_ISSET(peer->_socket._fd, &read_fds)) {
+            ready = true;
+        }
+#endif
+        if (ready) {
             peer->_pending = true;
         }
         curr = _z_transport_peer_unicast_list_tail(curr);
